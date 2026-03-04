@@ -1,20 +1,19 @@
-name: "Merge Upstream"
-description: "Merge changes from the uppstream repo you had forked from."
-author: "eXions"
+name: "Merge Upstream - Repo's default branches"
+description: "Fork of https://github.com/eXions/merge-upstream. Delta: Uses Repo's default branches as branch parameter defaults."
+author: "Big Lecodeski"
 branding:
   icon: git-merge
   color: black
 
 inputs:
   upstream:
-    description: 'Upstream repository owner/name. For example, exions/merge-upstream'
+    description: 'Upstream repository owner/name. For example, lecodeski/merge-upstream-defaults'
     required: true
   upstream-branch:
-    description: 'Upstream branch to merge from. For example, master'
-    default: 'master'
+    description: "Upstream branch to merge from. Default is the upstream's default branch"
   branch:
-    description: 'Branch to merge to. For example, master'
-    default: 'master'
+    description: "Branch to merge to. Default is the current repo's default branch"
+    default: ${{ github.event.repository.default_branch }}
   token:
     description: >
       Personal access token (PAT) used to fetch the repository. The PAT is configured
@@ -27,13 +26,20 @@ inputs:
 
 runs:
   using: "composite"
-  steps: 
-    - run: | 
+  steps:
+    - run: |
+        UPSTREAM_BRANCH="${{ inputs.upstream-branch }}"
+        if [ -z "$UPSTREAM_BRANCH" ]; then
+          UPSTREAM_BRANCH=$(gh repo view "${{ inputs.upstream }}" --json defaultBranchRef --jq '.defaultBranchRef.name')
+        fi
+
         git remote add -f upstream "https://github.com/${{ inputs.upstream }}.git"
         git remote -v
         git branch --all
         git config --list
         git checkout ${{ inputs.branch }}
-        git merge --ff-only upstream/${{ inputs.upstream-branch }}
-        git push 
+        git merge --ff-only upstream/"$UPSTREAM_BRANCH"
+        git push
       shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
